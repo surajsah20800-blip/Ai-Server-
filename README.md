@@ -1,11 +1,40 @@
-<div align="center">
+# Gemini AI Server 🤖
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  A fun, multilingual AI chatbot server powered by Google Gemini Flash.
 
-  <h1>Built with AI Studio</h2>
+  ## Features
+  - 😄 Jokes and humor
+  - 🌍 All world languages supported
+  - 🧠 Conversation memory (session-based)
+  - 📚 Vast knowledge on any topic
+  - 🎉 Emoji-rich responses
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+  ## API Endpoints
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+  ### Chat
+  ```
+  POST /api/gemini/chat
+  Content-Type: application/json
 
-</div>
+  {
+    "message": "Hello! Ek joke sunao",
+    "sessionId": "optional-unique-id"
+  }
+  ```
+
+  ### Get History
+  ```
+  GET /api/gemini/history/:sessionId
+  ```
+
+  ### Clear History
+  ```
+  DELETE /api/gemini/history/:sessionId
+  ```
+
+  ## Deploy on Railway
+
+  1. Add PostgreSQL service in Railway
+  2. Set `GEMINI_API_KEY` environment variable
+  3. Deploy!
+  
