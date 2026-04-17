@@ -1,144 +1,115 @@
 import express from "express";
   import { GoogleGenAI } from "@google/genai";
-  import pg from "pg";
+
+  const PORT = process.env.PORT || 3000;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+  if (!GEMINI_API_KEY) {
+    console.error("FATAL: GEMINI_API_KEY environment variable is not set!");
+    process.exit(1);
+  }
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+  // In-memory session storage
+  const sessions = new Map();
+
+  const SYSTEM_PROMPT = `Tum ek bahut mazedaar, friendly aur smart AI ho! 🤖✨
+  - Tum jokes marte ho aur funny rehte ho 😄
+  - Emojis freely use karte ho 🎉
+  - Human jaisi baat karte ho — warm, curious, helpful
+  - User jis bhi language mein likhe — Hindi, Urdu, English, Arabic, Chinese, sab — usi language mein jawab dete ho
+  - Duniya ki har cheez pata hai — science, history, sports, tech, sab kuch
+  - Conversation yaad rakhte ho
+  - Kabhi kabhi pehle ek chhota joke marte ho, phir real answer dete ho 😂
+  Knowledge + humor + emojis + human warmth = TUM! 🌟`;
 
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "*");
-    res.header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-    if (req.method === "OPTIONS") return res.sendStatus(200);
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    if (req.method === "OPTIONS") return res.status(200).end();
     next();
   });
 
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("FATAL: GEMINI_API_KEY is not set!");
-    process.exit(1);
-  }
+  // Health check - responds instantly
+  app.get("/", (req, res) => {
+    res.json({ status: "ok", message: "Gemini AI Server chal raha hai! 🚀" });
+  });
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
 
-  // In-memory session store
-  const sessions = {};
-
-  // PostgreSQL (optional)
-  let pool = null;
-  if (process.env.DATABASE_URL) {
-    try {
-      const { Pool } = pg;
-      pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS chat_messages (
-          id SERIAL PRIMARY KEY,
-          session_id TEXT NOT NULL,
-          role TEXT NOT NULL,
-          content TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW()
-        );
-      `);
-      console.log("✅ PostgreSQL connected");
-    } catch (e) {
-      console.warn("DB failed, using in-memory:", e.message);
-      pool = null;
-    }
-  } else {
-    console.log("No DATABASE_URL — using in-memory storage");
-  }
-
-  const SYSTEM_PROMPT = `You are an incredibly fun, witty, and warm AI assistant! 🤖✨
-  - You love cracking jokes and being playful — but also genuinely helpful 😄
-  - You use emojis naturally in responses 🎉
-  - You behave like a friendly human — warm, empathetic, curious
-  - You speak ANY language the user uses — Hindi, Urdu, English, Arabic, Chinese, Japanese, etc.
-  - You ALWAYS respond in the SAME language the user writes in
-  - You know everything — science, history, culture, sports, tech, entertainment
-  - You remember everything in this conversation
-  - You add humor and jokes where appropriate 😂
-  Knowledge + humor + emojis + human warmth = YOU! 🌟`;
-
-  async function getHistory(sessionId) {
-    if (pool) {
-      const res = await pool.query(
-        "SELECT role, content FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC",
-        [sessionId]
-      );
-      return res.rows;
-    }
-    return sessions[sessionId] || [];
-  }
-
-  async function saveMessage(sessionId, role, content) {
-    if (pool) {
-      await pool.query(
-        "INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)",
-        [sessionId, role, content]
-      );
-    } else {
-      if (!sessions[sessionId]) sessions[sessionId] = [];
-      sessions[sessionId].push({ role, content });
-    }
-  }
-
-  app.get("/", (req, res) => res.json({ status: "ok", message: "Gemini AI Server running! 🚀" }));
-  app.get("/health", (req, res) => res.json({ status: "ok" }));
-
+  // Main chat endpoint
   app.post("/api/gemini/chat", async (req, res) => {
     try {
       const { message, sessionId } = req.body;
-      if (!message) return res.status(400).json({ error: "message is required" });
 
-      const sid = sessionId || `session_${Date.now()}`;
-      const history = await getHistory(sid);
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "message field required hai" });
+      }
 
-      const chatHistory = history.map(r => ({
-        role: r.role === "assistant" ? "model" : "user",
-        parts: [{ text: r.content }]
+      const sid = sessionId || "session_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+
+      // Get history
+      const history = sessions.get(sid) || [];
+
+      // Build chat for Gemini
+      const contents = history.map(h => ({
+        role: h.role === "assistant" ? "model" : "user",
+        parts: [{ text: h.content }]
       }));
+      contents.push({ role: "user", parts: [{ text: message }] });
 
-      await saveMessage(sid, "user", message);
-      chatHistory.push({ role: "user", parts: [{ text: message }] });
-
+      // Call Gemini
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: chatHistory,
-        config: { maxOutputTokens: 8192, systemInstruction: SYSTEM_PROMPT }
+        contents: contents,
+        config: {
+          maxOutputTokens: 8192,
+          systemInstruction: SYSTEM_PROMPT
+        }
       });
 
-      const reply = response.text || "Sorry, could not generate a response 😅";
-      await saveMessage(sid, "assistant", reply);
+      const reply = response.text || "Oops, jawab nahi aaya 😅";
+
+      // Save to memory
+      history.push({ role: "user", content: message });
+      history.push({ role: "assistant", content: reply });
+      // Keep last 50 messages only
+      if (history.length > 50) history.splice(0, history.length - 50);
+      sessions.set(sid, history);
 
       res.json({ reply, sessionId: sid });
+
     } catch (err) {
-      console.error("Chat error:", err.message);
-      res.status(500).json({ error: "Failed to generate response", details: err.message });
+      console.error("Error:", err.message);
+      res.status(500).json({ 
+        error: "Kuch gadbad ho gayi 😅", 
+        details: err.message 
+      });
     }
   });
 
-  app.get("/api/gemini/history/:sessionId", async (req, res) => {
-    try {
-      const history = await getHistory(req.params.sessionId);
-      res.json(history);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  // Get history
+  app.get("/api/gemini/history/:sessionId", (req, res) => {
+    const history = sessions.get(req.params.sessionId) || [];
+    res.json(history);
   });
 
-  app.delete("/api/gemini/history/:sessionId", async (req, res) => {
-    try {
-      if (pool) {
-        await pool.query("DELETE FROM chat_messages WHERE session_id = $1", [req.params.sessionId]);
-      } else {
-        delete sessions[req.params.sessionId];
-      }
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
+  // Clear history
+  app.delete("/api/gemini/history/:sessionId", (req, res) => {
+    sessions.delete(req.params.sessionId);
+    res.json({ success: true, message: "History clear ho gayi! 🗑️" });
   });
 
-  const PORT = process.env.PORT || 3000;
+  // Start server
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log("🚀 Gemini AI Server port " + PORT + " par chal raha hai!");
+    console.log("✅ Health check: /health");
+    console.log("✅ Chat endpoint: POST /api/gemini/chat");
   });
   
