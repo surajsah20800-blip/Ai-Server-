@@ -1,7 +1,8 @@
 {
     "name": "gemini-ai-server",
     "version": "1.0.0",
-    "description": "Gemini AI Chat Server with memory, jokes, emojis and multilingual support",
+    "type": "module",
+    "description": "Gemini AI Chat Server",
     "main": "server.js",
     "scripts": {
       "start": "node server.js"
@@ -12,6 +13,6 @@
       "pg": "^8.11.3"
     },
     "engines": {
-      "node": ">=18"
+      "node": ">=20"
     }
   }
