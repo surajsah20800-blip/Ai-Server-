@@ -1,5 +1,6 @@
-const express = require("express");
-  const { GoogleGenAI } = require("@google/genai");
+import express from "express";
+  import { GoogleGenAI } from "@google/genai";
+  import pg from "pg";
 
   const app = express();
   app.use(express.json());
@@ -12,22 +13,22 @@ const express = require("express");
   });
 
   if (!process.env.GEMINI_API_KEY) {
-    console.error("ERROR: GEMINI_API_KEY is not set!");
+    console.error("FATAL: GEMINI_API_KEY is not set!");
     process.exit(1);
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-  // In-memory session store (fallback if no DB)
+  // In-memory session store
   const sessions = {};
 
-  // Try to use PostgreSQL if available
+  // PostgreSQL (optional)
   let pool = null;
   if (process.env.DATABASE_URL) {
     try {
-      const { Pool } = require("pg");
-      pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      pool.query(`
+      const { Pool } = pg;
+      pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS chat_messages (
           id SERIAL PRIMARY KEY,
           session_id TEXT NOT NULL,
@@ -35,16 +36,14 @@ const express = require("express");
           content TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
         );
-      `).then(() => console.log("✅ Database connected")).catch(err => {
-        console.warn("DB setup failed, using in-memory:", err.message);
-        pool = null;
-      });
+      `);
+      console.log("✅ PostgreSQL connected");
     } catch (e) {
-      console.warn("pg not available, using in-memory storage");
+      console.warn("DB failed, using in-memory:", e.message);
       pool = null;
     }
   } else {
-    console.log("No DATABASE_URL set — using in-memory session storage");
+    console.log("No DATABASE_URL — using in-memory storage");
   }
 
   const SYSTEM_PROMPT = `You are an incredibly fun, witty, and warm AI assistant! 🤖✨
@@ -81,25 +80,23 @@ const express = require("express");
     }
   }
 
-  // Health check
-  app.get("/", (req, res) => res.json({ status: "ok", message: "Gemini AI Server is running! 🚀", db: pool ? "connected" : "in-memory" }));
+  app.get("/", (req, res) => res.json({ status: "ok", message: "Gemini AI Server running! 🚀" }));
   app.get("/health", (req, res) => res.json({ status: "ok" }));
 
-  // Main chat endpoint
   app.post("/api/gemini/chat", async (req, res) => {
     try {
       const { message, sessionId } = req.body;
       if (!message) return res.status(400).json({ error: "message is required" });
 
-      const currentSessionId = sessionId || `session_${Date.now()}`;
-      const history = await getHistory(currentSessionId);
+      const sid = sessionId || `session_${Date.now()}`;
+      const history = await getHistory(sid);
 
       const chatHistory = history.map(r => ({
         role: r.role === "assistant" ? "model" : "user",
         parts: [{ text: r.content }]
       }));
 
-      await saveMessage(currentSessionId, "user", message);
+      await saveMessage(sid, "user", message);
       chatHistory.push({ role: "user", parts: [{ text: message }] });
 
       const response = await ai.models.generateContent({
@@ -109,16 +106,15 @@ const express = require("express");
       });
 
       const reply = response.text || "Sorry, could not generate a response 😅";
-      await saveMessage(currentSessionId, "assistant", reply);
+      await saveMessage(sid, "assistant", reply);
 
-      res.json({ reply, sessionId: currentSessionId });
+      res.json({ reply, sessionId: sid });
     } catch (err) {
-      console.error(err);
+      console.error("Chat error:", err.message);
       res.status(500).json({ error: "Failed to generate response", details: err.message });
     }
   });
 
-  // Get chat history
   app.get("/api/gemini/history/:sessionId", async (req, res) => {
     try {
       const history = await getHistory(req.params.sessionId);
@@ -128,7 +124,6 @@ const express = require("express");
     }
   });
 
-  // Clear history
   app.delete("/api/gemini/history/:sessionId", async (req, res) => {
     try {
       if (pool) {
@@ -144,6 +139,6 @@ const express = require("express");
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Gemini AI Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
   });
   
