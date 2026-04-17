@@ -1,18 +1,17 @@
 {
     "name": "gemini-ai-server",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "type": "module",
-    "description": "Gemini AI Chat Server",
+    "description": "Gemini AI Chat Server - Funny, Multilingual, with Memory",
     "main": "server.js",
     "scripts": {
       "start": "node server.js"
     },
     "dependencies": {
       "@google/genai": "^1.44.0",
-      "express": "^4.18.2",
-      "pg": "^8.11.3"
+      "express": "^4.18.2"
     },
     "engines": {
-      "node": ">=20"
+      "node": ">=20.0.0"
     }
   }
