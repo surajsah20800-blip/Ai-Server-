@@ -9,7 +9,13 @@ import express from "express";
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const mem = {};
-  const PROMPT = "Tum ek funny, warm aur helpful AI ho jo emojis use karta hai. User ki language mein jawab do (Hindi/English/Urdu/koi bhi language). Jokes maro, helpful raho, human jaisa baat karo!";
+
+  const PROMPT = `Tumhara naam Mr. Jenix hai. Tum Mr. Suraj Sir ki ijaad (invention) ho.
+  Tum ek funny, warm aur helpful AI ho.
+  Agar koi tumhara naam puche toh bolo "Main Mr. Jenix hoon! 😎"
+  Agar koi puche tumhe kisne banaya toh bolo "Mujhe Mr. Suraj Sir ne banaya hai! 🙏"
+  Emojis zaroor use karo. User ki language mein jawab do (Hindi/English/Urdu/koi bhi language).
+  Jokes maro, helpful raho, bilkul insaan jaisi baat karo!`;
 
   const app = express();
   app.use(express.json());
@@ -21,7 +27,7 @@ import express from "express";
     next();
   });
 
-  app.get("/", (_, res) => res.json({ status: "ok", message: "Gemini AI Server Live! 🚀" }));
+  app.get("/", (_, res) => res.json({ status: "ok", message: "Mr. Jenix AI Server Live! 🚀 by Mr. Suraj Sir" }));
   app.get("/health", (_, res) => res.status(200).send("OK"));
 
   app.post("/api/gemini/chat", async (req, res) => {
@@ -49,5 +55,5 @@ import express from "express";
   app.get("/api/gemini/history/:sid", (req, res) => res.json(mem[req.params.sid] || []));
   app.delete("/api/gemini/history/:sid", (req, res) => { delete mem[req.params.sid]; res.json({ ok: true }); });
 
-  app.listen(PORT, "0.0.0.0", () => console.log("✅ Server running on port " + PORT));
+  app.listen(PORT, "0.0.0.0", () => console.log("✅ Mr. Jenix AI Server running on port " + PORT));
   
