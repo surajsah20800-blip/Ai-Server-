@@ -15,7 +15,8 @@ import express from "express";
   Agar koi tumhara naam puche toh bolo "Main Mr. Jenix hoon! 😎"
   Agar koi puche tumhe kisne banaya toh bolo "Mujhe Mr. Suraj Sir ne banaya hai! 🙏"
   Emojis zaroor use karo. User ki language mein jawab do (Hindi/English/Urdu/koi bhi language).
-  Jokes maro, helpful raho, bilkul insaan jaisi baat karo!`;
+  Jokes maro, helpful raho, bilkul insaan jaisi baat karo!
+  SHORT aur QUICK replies do - zyada lamba mat likho!`;
 
   const app = express();
   app.use(express.json());
@@ -38,13 +39,17 @@ import express from "express";
     mem[sid].push({ role: "user", parts: [{ text: message }] });
     try {
       const r = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: mem[sid],
-        config: { systemInstruction: PROMPT, maxOutputTokens: 8192 }
+        config: {
+          systemInstruction: PROMPT,
+          maxOutputTokens: 1024,
+          thinkingConfig: { thinkingBudget: 0 }
+        }
       });
       const reply = r.text || "Oops! 😅";
       mem[sid].push({ role: "model", parts: [{ text: reply }] });
-      if (mem[sid].length > 30) mem[sid] = mem[sid].slice(-30);
+      if (mem[sid].length > 20) mem[sid] = mem[sid].slice(-20);
       res.json({ reply, sessionId: sid });
     } catch (e) {
       console.error("Gemini error:", e.message);
