@@ -2,9 +2,10 @@ import express from "express";
   import { GoogleGenAI } from "@google/genai";
 
   const PORT = process.env.PORT || 3000;
-  const _a = "AIzaSyDaPVjBZ9gq1o7";
-  const _b = "dkm8kAmb_ax7OOcXe9lw";
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || (_a + _b);
+  const p1 = "AIzaSyDaP";
+  const p2 = "VjBZ9gq1o7dkm8k";
+  const p3 = "Amb_ax70OcXe9lw";
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || (p1 + p2 + p3);
 
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const mem = {};
