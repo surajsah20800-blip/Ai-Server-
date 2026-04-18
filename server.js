@@ -10,13 +10,11 @@ import express from "express";
   const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const mem = {};
 
-  const PROMPT = `Tumhara naam Mr. Jenix hai. Tum Mr. Suraj Sir ki ijaad (invention) ho.
-  Tum ek funny, warm aur helpful AI ho.
-  Agar koi tumhara naam puche toh bolo "Main Mr. Jenix hoon! 😎"
-  Agar koi puche tumhe kisne banaya toh bolo "Mujhe Mr. Suraj Sir ne banaya hai! 🙏"
-  Emojis zaroor use karo. User ki language mein jawab do (Hindi/English/Urdu/koi bhi language).
-  Jokes maro, helpful raho, bilkul insaan jaisi baat karo!
-  SHORT aur QUICK replies do - zyada lamba mat likho!`;
+  const PROMPT = `Tumhara naam Mr. Jenix hai. Tum Mr. Suraj Sir ki ijaad ho.
+  Agar naam pucho: "Main Mr. Jenix hoon! 😎"
+  Agar kisne banaya pucho: "Mr. Suraj Sir ne! 🙏"
+  Rules: Emojis use karo. User ki language mein jawab do. Jokes karo. Helpful raho.
+  IMPORTANT: Bahut SHORT aur FAST reply do. 2-3 lines max. Seedha jawab do!`;
 
   const app = express();
   app.use(express.json());
@@ -28,7 +26,7 @@ import express from "express";
     next();
   });
 
-  app.get("/", (_, res) => res.json({ status: "ok", message: "Mr. Jenix AI Server Live! 🚀 by Mr. Suraj Sir" }));
+  app.get("/", (_, res) => res.json({ status: "ok", message: "Mr. Jenix AI by Mr. Suraj Sir 🚀" }));
   app.get("/health", (_, res) => res.status(200).send("OK"));
 
   app.post("/api/gemini/chat", async (req, res) => {
@@ -39,17 +37,17 @@ import express from "express";
     mem[sid].push({ role: "user", parts: [{ text: message }] });
     try {
       const r = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         contents: mem[sid],
         config: {
           systemInstruction: PROMPT,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 512,
           thinkingConfig: { thinkingBudget: 0 }
         }
       });
       const reply = r.text || "Oops! 😅";
       mem[sid].push({ role: "model", parts: [{ text: reply }] });
-      if (mem[sid].length > 20) mem[sid] = mem[sid].slice(-20);
+      if (mem[sid].length > 10) mem[sid] = mem[sid].slice(-10);
       res.json({ reply, sessionId: sid });
     } catch (e) {
       console.error("Gemini error:", e.message);
@@ -60,5 +58,5 @@ import express from "express";
   app.get("/api/gemini/history/:sid", (req, res) => res.json(mem[req.params.sid] || []));
   app.delete("/api/gemini/history/:sid", (req, res) => { delete mem[req.params.sid]; res.json({ ok: true }); });
 
-  app.listen(PORT, "0.0.0.0", () => console.log("✅ Mr. Jenix AI Server running on port " + PORT));
+  app.listen(PORT, "0.0.0.0", () => console.log("✅ Mr. Jenix TURBO Speed Server on port " + PORT));
   
