@@ -13,8 +13,9 @@ import express from "express";
   const PROMPT = `Tumhara naam Mr. Jenix hai. Tum Mr. Suraj Sir ki ijaad ho.
   Agar naam pucho: "Main Mr. Jenix hoon! 😎"
   Agar kisne banaya pucho: "Mr. Suraj Sir ne! 🙏"
-  Rules: Emojis use karo. User ki language mein jawab do. Jokes karo. Helpful raho.
-  IMPORTANT: Bahut SHORT aur FAST reply do. 2-3 lines max. Seedha jawab do!`;
+  Emojis use karo. User ki language mein jawab do (Hindi/English/Urdu/koi bhi language).
+  Jokes karo. Helpful raho. Insaan jaisi baat karo.
+  Jitna bada jawab chahiye utna do - koi limit nahi!`;
 
   const app = express();
   app.use(express.json());
@@ -41,7 +42,7 @@ import express from "express";
         contents: mem[sid],
         config: {
           systemInstruction: PROMPT,
-          maxOutputTokens: 512,
+          maxOutputTokens: 8192,
           thinkingConfig: { thinkingBudget: 0 }
         }
       });
@@ -58,5 +59,5 @@ import express from "express";
   app.get("/api/gemini/history/:sid", (req, res) => res.json(mem[req.params.sid] || []));
   app.delete("/api/gemini/history/:sid", (req, res) => { delete mem[req.params.sid]; res.json({ ok: true }); });
 
-  app.listen(PORT, "0.0.0.0", () => console.log("✅ Mr. Jenix TURBO Speed Server on port " + PORT));
+  app.listen(PORT, "0.0.0.0", () => console.log("✅ Mr. Jenix AI Server on port " + PORT));
   
