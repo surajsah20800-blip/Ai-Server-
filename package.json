@@ -1,9 +1,10 @@
 {
     "name": "gemini-ai-server",
-    "version": "5.0.0",
+    "version": "6.0.0",
     "type": "module",
     "scripts": {
-      "start": "node server.js"
+      "start": "node server.js",
+      "build": "echo 'No build needed'"
     },
     "dependencies": {
       "@google/genai": "^1.44.0",
